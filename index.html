@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>PDF Ticket Cutter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 760px;
+      margin: 40px auto;
+      line-height: 1.5;
+    }
+
+    h1 {
+      font-size: 26px;
+    }
+
+    label {
+      display: block;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+
+    input, select, button {
+      margin-top: 8px;
+      padding: 10px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    #status {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+
+    .note {
+      background: #f4f4f4;
+      padding: 12px;
+      margin-top: 20px;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>PDF Ticket Cutter</h1>
+
+  <p>
+    Wgraj PDF z biletami, wybierz układ i pobierz ZIP z osobnymi plikami PDF.
+  </p>
+
+  <div class="note">
+    Pliki PDF są przetwarzane lokalnie w przeglądarce. Program nie zapisuje ich na GitHubie.
+  </div>
+
+  <label>Plik PDF:</label>
+  <input type="file" id="pdfFile" accept="application/pdf" />
+
+  <label>Układ biletów:</label>
+  <select id="mode">
+    <option value="one">1 bilet na stronie</option>
+    <option value="two_vertical">2 bilety na stronie — góra/dół</option>
+    <option value="three_vertical">3 bilety na stronie — góra/środek/dół</option>
+    <option value="three_horizontal">3 bilety na stronie — lewy/środek/prawy</option>
+    <option value="four_grid">4 bilety na stronie — siatka 2x2</option>
+  </select>
+
+  <button onclick="processPdf()">Wytnij bilety i pobierz ZIP</button>
+
+  <div id="status"></div>
+
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <script>
+    async function processPdf() {
+      const fileInput = document.getElementById('pdfFile');
+      const mode = document.getElementById('mode').value;
+      const status = document.getElementById('status');
+
+      if (!fileInput.files.length) {
+        alert('Najpierw wybierz plik PDF.');
+        return;
+      }
+
+      status.textContent = 'Przetwarzanie PDF...';
+
+      try {
+        const file = fileInput.files[0];
+        const pdfBytes = await file.arrayBuffer();
+        const sourcePdf = await PDFLib.PDFDocument.load(pdfBytes);
+        const pageCount = sourcePdf.getPageCount();
+
+        const zip = new JSZip();
+        let ticketNumber = 1;
+
+        for (let i = 0; i < pageCount; i++) {
+          const page = sourcePdf.getPage(i);
+          const width = page.getWidth();
+          const height = page.getHeight();
+
+          let crops = [];
+
+          if (mode === 'one') {
+            crops = [
+              { x: 0, y: 0, w: width, h: height }
+            ];
+          }
+
+          if (mode === 'two_vertical') {
+            crops = [
+              { x: 0, y: height / 2, w: width, h: height / 2 },
+              { x: 0, y: 0, w: width, h: height / 2 }
+            ];
+          }
+
+          if (mode === 'three_vertical') {
+            crops = [
+              { x: 0, y: height * 2 / 3, w: width, h: height / 3 },
+              { x: 0, y: height / 3, w: width, h: height / 3 },
+              { x: 0, y: 0, w: width, h: height / 3 }
+            ];
+          }
+
+          if (mode === 'three_horizontal') {
+            crops = [
+              { x: 0, y: 0, w: width / 3, h: height },
+              { x: width / 3, y: 0, w: width / 3, h: height },
+              { x: width * 2 / 3, y: 0, w: width / 3, h: height }
+            ];
+          }
+
+          if (mode === 'four_grid') {
+            crops = [
+              { x: 0, y: height / 2, w: width / 2, h: height / 2 },
+              { x: width / 2, y: height / 2, w: width / 2, h: height / 2 },
+              { x: 0, y: 0, w: width / 2, h: height / 2 },
+              { x: width / 2, y: 0, w: width / 2, h: height / 2 }
+            ];
+          }
+
+          for (const crop of crops) {
+            const newPdf = await PDFLib.PDFDocument.create();
+            const [embeddedPage] = await newPdf.embedPdf(pdfBytes, [i]);
+
+            const newPage = newPdf.addPage([crop.w, crop.h]);
+
+            newPage.drawPage(embeddedPage, {
+              x: -crop.x,
+              y: -crop.y,
+              width: width,
+              height: height
+            });
+
+            const newPdfBytes = await newPdf.save();
+            const fileName = `bilet_${String(ticketNumber).padStart(3, '0')}.pdf`;
+
+            zip.file(fileName, newPdfBytes);
+            ticketNumber++;
+          }
+        }
+
+        status.textContent = 'Tworzenie pliku ZIP...';
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(zipBlob);
+        link.download = 'bilety.zip';
+        link.click();
+
+        status.textContent = `Gotowe. Wygenerowano ${ticketNumber - 1} biletów.`;
+      } catch (error) {
+        console.error(error);
+        status.textContent = 'Błąd. Sprawdź, czy plik PDF nie jest zabezpieczony albo uszkodzony.';
+      }
+    }
+  </script>
+
+</body>
+</html>
