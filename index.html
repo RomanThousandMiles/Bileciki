@@ -130,28 +130,24 @@
           }
 
           if (mode === 'three_vertical') {
-            const topMargin = Number(document.getElementById('topMargin').value);
-            const ticketHeight = Number(document.getElementById('ticketHeight').value);
-            const ticketGap = Number(document.getElementById('ticketGap').value);
-          
             crops = [
               {
-                x: 0,
-                y: height - topMargin - ticketHeight,
-                w: width,
-                h: ticketHeight
+                x: 60,
+                y: height - 234,
+                w: 475,
+                h: 204
               },
               {
-                x: 0,
-                y: height - topMargin - ticketHeight * 2 - ticketGap,
-                w: width,
-                h: ticketHeight
+                x: 60,
+                y: height - 462,
+                w: 475,
+                h: 204
               },
               {
-                x: 0,
-                y: height - topMargin - ticketHeight * 3 - ticketGap * 2,
-                w: width,
-                h: ticketHeight
+                x: 60,
+                y: height - 690,
+                w: 475,
+                h: 204
               }
             ];
           }
