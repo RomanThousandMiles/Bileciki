@@ -187,16 +187,17 @@
               width: crop.w,
               height: crop.h
             });
-            
+          
             const font = await newPdf.embedFont(PDFLib.StandardFonts.HelveticaBold);
-            
-            newPage.drawText(`BILET ${String(ticketNumber).padStart(3, '0')}`, {
-              x: crop.w - 78,
-              y: crop.h - 18,
-              size: 10,
+            const ticketLabel = `BILET ${String(ticketNumber).padStart(3, '0')}`;
+          
+            newPage.drawText(ticketLabel, {
+              x: crop.w - 65,
+              y: crop.h - 16,
+              size: 9,
               font: font
             });
-            
+          
             const newPdfBytes = await newPdf.save();
             const fileName = `bilet_${String(ticketNumber).padStart(3, '0')}.pdf`;
           
