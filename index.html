@@ -70,6 +70,16 @@
     <option value="four_grid">4 bilety na stronie — siatka 2x2</option>
   </select>
 
+  <label>Ustawienia dla 3 biletów jeden pod drugim:</label>
+
+  <input type="number" id="topMargin" value="70" placeholder="Margines od góry" />
+  <input type="number" id="ticketHeight" value="235" placeholder="Wysokość jednego biletu" />
+  <input type="number" id="ticketGap" value="25" placeholder="Odstęp między biletami" />
+
+  <p style="font-size: 13px; color: #555;">
+  Jeśli źle wycina: zmieniaj wartości i testuj ponownie. Najczęściej trzeba zmienić wysokość biletu.
+  </p>
+
   <button onclick="processPdf()">Wytnij bilety i pobierz ZIP</button>
 
   <div id="status"></div>
@@ -120,25 +130,26 @@
           }
 
           if (mode === 'three_vertical') {
-            const ticketHeight = height / 3 - 25;
-            const offset = 18;
+            const topMargin = Number(document.getElementById('topMargin').value);
+            const ticketHeight = Number(document.getElementById('ticketHeight').value);
+            const ticketGap = Number(document.getElementById('ticketGap').value);
           
             crops = [
               {
                 x: 0,
-                y: height - ticketHeight - offset,
+                y: height - topMargin - ticketHeight,
                 w: width,
                 h: ticketHeight
               },
               {
                 x: 0,
-                y: height - ticketHeight * 2 - offset - 25,
+                y: height - topMargin - ticketHeight * 2 - ticketGap,
                 w: width,
                 h: ticketHeight
               },
               {
                 x: 0,
-                y: height - ticketHeight * 3 - offset - 50,
+                y: height - topMargin - ticketHeight * 3 - ticketGap * 2,
                 w: width,
                 h: ticketHeight
               }
