@@ -65,20 +65,10 @@
   <select id="mode">
     <option value="one">1 bilet na stronie</option>
     <option value="two_vertical">2 bilety na stronie — góra/dół</option>
-    <option value="three_vertical">3 bilety na stronie — góra/środek/dół</option>
+    <option value="three_vertical">3 bilety na stronie — PKL Palenica</option>
     <option value="three_horizontal">3 bilety na stronie — lewy/środek/prawy</option>
     <option value="four_grid">4 bilety na stronie — siatka 2x2</option>
   </select>
-
-  <label>Ustawienia dla 3 biletów jeden pod drugim:</label>
-
-  <input type="number" id="topMargin" value="70" placeholder="Margines od góry" />
-  <input type="number" id="ticketHeight" value="235" placeholder="Wysokość jednego biletu" />
-  <input type="number" id="ticketGap" value="25" placeholder="Odstęp między biletami" />
-
-  <p style="font-size: 13px; color: #555;">
-  Jeśli źle wycina: zmieniaj wartości i testuj ponownie. Najczęściej trzeba zmienić wysokość biletu.
-  </p>
 
   <button onclick="processPdf()">Wytnij bilety i pobierz ZIP</button>
 
@@ -171,39 +161,40 @@
 
           for (const crop of crops) {
             const newPdf = await PDFLib.PDFDocument.create();
-          
+
             const embeddedPage = await newPdf.embedPage(page, {
               left: crop.x,
               bottom: crop.y,
               right: crop.x + crop.w,
               top: crop.y + crop.h
             });
-          
+
             const newPage = newPdf.addPage([crop.w, crop.h]);
-          
+
             newPage.drawPage(embeddedPage, {
               x: 0,
               y: 0,
               width: crop.w,
               height: crop.h
             });
-          
+
             const font = await newPdf.embedFont(PDFLib.StandardFonts.HelveticaBold);
             const ticketLabel = `BILET ${String(ticketNumber).padStart(3, '0')}`;
-          
+
             newPage.drawText(ticketLabel, {
               x: crop.w - 65,
               y: crop.h - 16,
               size: 9,
               font: font
             });
-          
+
             const newPdfBytes = await newPdf.save();
             const fileName = `bilet_${String(ticketNumber).padStart(3, '0')}.pdf`;
-          
+
             zip.file(fileName, newPdfBytes);
             ticketNumber++;
           }
+        }
 
         status.textContent = 'Tworzenie pliku ZIP...';
 
@@ -212,12 +203,14 @@
         const link = document.createElement('a');
         link.href = URL.createObjectURL(zipBlob);
         link.download = 'bilety.zip';
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
 
         status.textContent = `Gotowe. Wygenerowano ${ticketNumber - 1} biletów.`;
       } catch (error) {
         console.error(error);
-        status.textContent = 'Błąd. Sprawdź, czy plik PDF nie jest zabezpieczony albo uszkodzony.';
+        status.textContent = 'Błąd: ' + error.message;
       }
     }
   </script>
