@@ -133,19 +133,19 @@
             crops = [
               {
                 x: 60,
-                y: height - 234,
+                y: 608,
                 w: 475,
                 h: 204
               },
               {
                 x: 60,
-                y: height - 462,
+                y: 380,
                 w: 475,
                 h: 204
               },
               {
                 x: 60,
-                y: height - 690,
+                y: 152,
                 w: 475,
                 h: 204
               }
@@ -171,24 +171,29 @@
 
           for (const crop of crops) {
             const newPdf = await PDFLib.PDFDocument.create();
-            const [embeddedPage] = await newPdf.embedPdf(pdfBytes, [i]);
-
-            const newPage = newPdf.addPage([crop.w, crop.h]);
-
-            newPage.drawPage(embeddedPage, {
-              x: -crop.x,
-              y: -crop.y,
-              width: width,
-              height: height
+          
+            const embeddedPage = await newPdf.embedPage(page, {
+              left: crop.x,
+              bottom: crop.y,
+              right: crop.x + crop.w,
+              top: crop.y + crop.h
             });
-
+          
+            const newPage = newPdf.addPage([crop.w, crop.h]);
+          
+            newPage.drawPage(embeddedPage, {
+              x: 0,
+              y: 0,
+              width: crop.w,
+              height: crop.h
+            });
+          
             const newPdfBytes = await newPdf.save();
             const fileName = `bilet_${String(ticketNumber).padStart(3, '0')}.pdf`;
-
+          
             zip.file(fileName, newPdfBytes);
             ticketNumber++;
           }
-        }
 
         status.textContent = 'Tworzenie pliku ZIP...';
 
