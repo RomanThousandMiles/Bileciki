@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8" />
-  <title>PDF Ticket Cutter</title>
+  <title>PDF Ticket Cutter JPG</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -48,10 +48,10 @@
 </head>
 <body>
 
-  <h1>PDF Ticket Cutter</h1>
+  <h1>PDF Ticket Cutter JPG</h1>
 
   <p>
-    Wgraj PDF z biletami, wybierz układ i pobierz ZIP z osobnymi plikami PDF.
+    Wgraj PDF z biletami, wybierz układ i pobierz ZIP z osobnymi plikami JPG.
   </p>
 
   <div class="note">
@@ -63,21 +63,21 @@
 
   <label>Układ biletów:</label>
   <select id="mode">
-    <option value="one">1 bilet na stronie</option>
-    <option value="two_vertical">2 bilety na stronie — góra/dół</option>
     <option value="three_vertical">3 bilety na stronie — PKL Palenica</option>
-    <option value="three_horizontal">3 bilety na stronie — lewy/środek/prawy</option>
-    <option value="four_grid">4 bilety na stronie — siatka 2x2</option>
+    <option value="one">1 bilet na stronie</option>
   </select>
 
-  <button onclick="processPdf()">Wytnij bilety i pobierz ZIP</button>
+  <button onclick="processPdf()">Wytnij bilety JPG i pobierz ZIP</button>
 
   <div id="status"></div>
 
-  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
   <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
     async function processPdf() {
       const fileInput = document.getElementById('pdfFile');
       const mode = document.getElementById('mode').value;
@@ -93,29 +93,44 @@
       try {
         const file = fileInput.files[0];
         const pdfBytes = await file.arrayBuffer();
-        const sourcePdf = await PDFLib.PDFDocument.load(pdfBytes);
-        const pageCount = sourcePdf.getPageCount();
 
+        const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
         const zip = new JSZip();
+
         let ticketNumber = 1;
 
-        for (let i = 0; i < pageCount; i++) {
-          const page = sourcePdf.getPage(i);
-          const width = page.getWidth();
-          const height = page.getHeight();
+        const renderScale = 2.5;
+
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+          status.textContent = `Przetwarzanie strony ${pageNumber} z ${pdf.numPages}...`;
+
+          const page = await pdf.getPage(pageNumber);
+          const viewport = page.getViewport({ scale: renderScale });
+
+          const pageCanvas = document.createElement('canvas');
+          const pageCtx = pageCanvas.getContext('2d');
+
+          pageCanvas.width = viewport.width;
+          pageCanvas.height = viewport.height;
+
+          await page.render({
+            canvasContext: pageCtx,
+            viewport: viewport
+          }).promise;
+
+          const pdfWidth = viewport.width / renderScale;
+          const pdfHeight = viewport.height / renderScale;
 
           let crops = [];
 
           if (mode === 'one') {
             crops = [
-              { x: 0, y: 0, w: width, h: height }
-            ];
-          }
-
-          if (mode === 'two_vertical') {
-            crops = [
-              { x: 0, y: height / 2, w: width, h: height / 2 },
-              { x: 0, y: 0, w: width, h: height / 2 }
+              {
+                x: 0,
+                y: 0,
+                w: pdfWidth,
+                h: pdfHeight
+              }
             ];
           }
 
@@ -142,56 +157,49 @@
             ];
           }
 
-          if (mode === 'three_horizontal') {
-            crops = [
-              { x: 0, y: 0, w: width / 3, h: height },
-              { x: width / 3, y: 0, w: width / 3, h: height },
-              { x: width * 2 / 3, y: 0, w: width / 3, h: height }
-            ];
-          }
-
-          if (mode === 'four_grid') {
-            crops = [
-              { x: 0, y: height / 2, w: width / 2, h: height / 2 },
-              { x: width / 2, y: height / 2, w: width / 2, h: height / 2 },
-              { x: 0, y: 0, w: width / 2, h: height / 2 },
-              { x: width / 2, y: 0, w: width / 2, h: height / 2 }
-            ];
-          }
-
           for (const crop of crops) {
-            const newPdf = await PDFLib.PDFDocument.create();
+            const sx = crop.x * renderScale;
+            const sy = (pdfHeight - crop.y - crop.h) * renderScale;
+            const sw = crop.w * renderScale;
+            const sh = crop.h * renderScale;
 
-            const embeddedPage = await newPdf.embedPage(page, {
-              left: crop.x,
-              bottom: crop.y,
-              right: crop.x + crop.w,
-              top: crop.y + crop.h
+            const ticketCanvas = document.createElement('canvas');
+            const ticketCtx = ticketCanvas.getContext('2d');
+
+            ticketCanvas.width = sw;
+            ticketCanvas.height = sh;
+
+            ticketCtx.fillStyle = 'white';
+            ticketCtx.fillRect(0, 0, ticketCanvas.width, ticketCanvas.height);
+
+            ticketCtx.drawImage(
+              pageCanvas,
+              sx,
+              sy,
+              sw,
+              sh,
+              0,
+              0,
+              sw,
+              sh
+            );
+
+            // Numer biletu
+            ticketCtx.font = 'bold 28px Arial';
+            ticketCtx.fillStyle = 'black';
+            ticketCtx.fillText(
+              `BILET ${String(ticketNumber).padStart(3, '0')}`,
+              ticketCanvas.width - 185,
+              35
+            );
+
+            const jpgBlob = await new Promise(resolve => {
+              ticketCanvas.toBlob(resolve, 'image/jpeg', 0.95);
             });
 
-            const newPage = newPdf.addPage([crop.w, crop.h]);
+            const fileName = `bilet_${String(ticketNumber).padStart(3, '0')}.jpg`;
+            zip.file(fileName, jpgBlob);
 
-            newPage.drawPage(embeddedPage, {
-              x: 0,
-              y: 0,
-              width: crop.w,
-              height: crop.h
-            });
-
-            const font = await newPdf.embedFont(PDFLib.StandardFonts.HelveticaBold);
-            const ticketLabel = `BILET ${String(ticketNumber).padStart(3, '0')}`;
-
-            newPage.drawText(ticketLabel, {
-              x: crop.w - 65,
-              y: crop.h - 16,
-              size: 9,
-              font: font
-            });
-
-            const newPdfBytes = await newPdf.save();
-            const fileName = `bilet_${String(ticketNumber).padStart(3, '0')}.pdf`;
-
-            zip.file(fileName, newPdfBytes);
             ticketNumber++;
           }
         }
@@ -202,12 +210,12 @@
 
         const link = document.createElement('a');
         link.href = URL.createObjectURL(zipBlob);
-        link.download = 'bilety.zip';
+        link.download = 'bilety_jpg.zip';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
-        status.textContent = `Gotowe. Wygenerowano ${ticketNumber - 1} biletów.`;
+        status.textContent = `Gotowe. Wygenerowano ${ticketNumber - 1} biletów JPG.`;
       } catch (error) {
         console.error(error);
         status.textContent = 'Błąd: ' + error.message;
