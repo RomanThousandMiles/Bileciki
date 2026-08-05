@@ -63,7 +63,8 @@
 
   <label>Układ biletów:</label>
   <select id="mode">
-    <option value="three_vertical">3 bilety na stronie — PKL Palenica</option>
+    <option value="pkl_palenica">3 bilety na stronie — PKL Palenica</option>
+    <option value="pkl_gubalowka_no_price">3 bilety na stronie — PKL Gubałówka bez ceny</option>
     <option value="one">1 bilet na stronie</option>
   </select>
 
@@ -77,6 +78,27 @@
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc =
       "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+    function isMostlyBlank(canvas) {
+      const ctx = canvas.getContext('2d');
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      let darkPixels = 0;
+      const totalPixels = canvas.width * canvas.height;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+
+        if (r < 235 || g < 235 || b < 235) {
+          darkPixels++;
+        }
+      }
+
+      return darkPixels / totalPixels < 0.01;
+    }
 
     async function processPdf() {
       const fileInput = document.getElementById('pdfFile');
@@ -98,8 +120,7 @@
         const zip = new JSZip();
 
         let ticketNumber = 1;
-
-        const renderScale = 2.5;
+        const renderScale = 3;
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
           status.textContent = `Przetwarzanie strony ${pageNumber} z ${pdf.numPages}...`;
@@ -134,7 +155,7 @@
             ];
           }
 
-          if (mode === 'three_vertical') {
+          if (mode === 'pkl_palenica') {
             crops = [
               {
                 x: 60,
@@ -153,6 +174,29 @@
                 y: 152,
                 w: 350,
                 h: 204
+              }
+            ];
+          }
+
+          if (mode === 'pkl_gubalowka_no_price') {
+            crops = [
+              {
+                x: 60,
+                y: 607,
+                w: 325,
+                h: 200
+              },
+              {
+                x: 60,
+                y: 397,
+                w: 325,
+                h: 200
+              },
+              {
+                x: 60,
+                y: 187,
+                w: 325,
+                h: 200
               }
             ];
           }
@@ -183,6 +227,22 @@
               sw,
               sh
             );
+
+            if (isMostlyBlank(ticketCanvas)) {
+              continue;
+            }
+
+            if (mode === 'pkl_gubalowka_no_price') {
+              ticketCtx.fillStyle = 'white';
+
+              // Zakrycie pola "CENA (z 8% VAT)" oraz "44,00 zł"
+              ticketCtx.fillRect(
+                118 * renderScale,
+                112 * renderScale,
+                95 * renderScale,
+                36 * renderScale
+              );
+            }
 
             // Numer biletu
             ticketCtx.font = 'bold 28px Arial';
