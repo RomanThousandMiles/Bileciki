@@ -244,13 +244,13 @@
               );
             }
 
-            // Numer biletu
+            // Numer biletu — pod numerem zamówienia
             ticketCtx.font = 'bold 28px Arial';
             ticketCtx.fillStyle = 'black';
             ticketCtx.fillText(
               `BILET ${String(ticketNumber).padStart(3, '0')}`,
-              ticketCanvas.width - 185,
-              35
+              118 * renderScale,
+              145 * renderScale
             );
 
             const jpgBlob = await new Promise(resolve => {
